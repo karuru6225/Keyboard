@@ -50,6 +50,7 @@ void HID_Keyboard::end(void) {
 // call release(), releaseAll(), or otherwise clear the report and resend.
 size_t HID_Keyboard::press(uint8_t k)
 {
+	Serial.printf("%c %02x ", k, k);
 	uint8_t i;
 	if (k >= 136) {			// it's a non-printing key (not a modifier)
 		k = k - 136;
@@ -80,6 +81,13 @@ size_t HID_Keyboard::press(uint8_t k)
 		_keyReport.keys[2] != k && _keyReport.keys[3] != k &&
 		_keyReport.keys[4] != k && _keyReport.keys[5] != k) {
 
+		char str[8];
+		sprintf(str, "p:0x%02x ", k);
+		Serial.print(str);
+		for (i=0; i<8; i++) {
+			Serial.printf("%1d", (_keyReport.modifiers >> i) & 1);
+		}
+		Serial.println("");
 		for (i=0; i<6; i++) {
 			if (_keyReport.keys[i] == 0x00) {
 				_keyReport.keys[i] = k;
