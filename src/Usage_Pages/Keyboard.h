@@ -4,9 +4,20 @@
 
 #include <Arduino.h>
 
+enum KeyboardModifierFlags : uint16_t {
+    MOD_LEFT_CTRL = (uint16_t)0x0100,
+    MOD_LEFT_SHIFT = (uint16_t)0x0200,
+    MOD_LEFT_ALT = (uint16_t)0x0400,
+    MOD_LEFT_GUI = (uint16_t)0x0800,
+    MOD_RIGHT_CTRL = (uint16_t)0x1000,
+    MOD_RIGHT_SHIFT = (uint16_t)0x2000,
+    MOD_RIGHT_ALT = (uint16_t)0x4000,
+    MOD_RIGHT_GUI = (uint16_t)0x8000
+};
+
 // Keyboard / Keypad Page 0x07
 
-enum KeyboardUsageId {
+enum KeyboardUsageId : uint8_t {
     // usage type = Sel
     KEY_RESERVED = 0x00,
     KEY_ERROR_ROLLOVER = 0x01,
@@ -128,7 +139,7 @@ enum KeyboardUsageId {
     // 0xA5 - 0xAF are reserved
     // 0xB0 - 0xDD are in use
     // 0xDE - 0xDF are reserved
-    
+
     // usage type = DV
     KEY_LEFT_CTRL = 0xE0,
     KEY_LEFT_SHIFT = 0xE1,
