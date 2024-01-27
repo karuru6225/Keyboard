@@ -1,31 +1,5 @@
-/*
-  Keyboard.cpp
-
-  Modified by Earle F. Philhower, III <earlephilhower@yahoo.com>
-  Main Arduino Library Copyright (c) 2015, Arduino LLC
-  Original code (pre-library): Copyright (c) 2011, Peter Barrett
-
-  This library is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License as published by the Free Software Foundation; either
-  version 2.1 of the License, or (at your option) any later version.
-
-  This library is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
-
-#include "Keyboard.h"
-#include "KeyboardLayout.h"
-#include <RP2040USB.h>
-
-#include "tusb.h"
-#include "class/hid/hid_device.h"
+#include "HID_Keyboard.h"
+#include <strings.h>
 
 //================================================================================
 //================================================================================
@@ -33,162 +7,201 @@
 
 HID_Keyboard::HID_Keyboard(void) {
     bzero(&_keyReport, sizeof(_keyReport));
-    _asciimap = KeyboardLayout_en_US;
     _ledCB = nullptr;
 }
 
-void HID_Keyboard::begin(const uint8_t *layout) {
-    _asciimap = layout;
+void HID_Keyboard::begin(void) {
+	releaseAll();
+	send();
 }
 
 void HID_Keyboard::end(void) {
+	releaseAll();
 }
 
-// press() adds the specified key (printing, non-printing, or modifier)
-// to the persistent key report and sends the report.  Because of the way
-// USB HID works, the host acts like the key remains pressed until we
-// call release(), releaseAll(), or otherwise clear the report and resend.
-size_t HID_Keyboard::press(uint8_t k)
-{
-	Serial.printf("%c %02x ", k, k);
-	uint8_t i;
-	if (k >= 136) {			// it's a non-printing key (not a modifier)
-		k = k - 136;
-	} else if (k >= 128) {	// it's a modifier key
-		_keyReport.modifiers |= (1<<(k-128));
-		k = 0;
-	} else {				// it's a printing key
-		k = pgm_read_byte(_asciimap + k);
-		if (!k) {
-			setWriteError();
-			return 0;
+size_t HID_Keyboard::write(KeyboardUsageId k) {
+	auto ret = press(k);
+	if (ret) {
+		release(k);
+	};
+	return ret;
+}
+
+size_t HID_Keyboard::press(KeyboardUsageId k) {
+	auto ret = add(k);
+	if (ret) {
+		send();
+	}
+	return ret;
+}
+
+size_t HID_Keyboard::release(KeyboardUsageId k) {
+	auto ret = remove(k);
+	if (ret) {
+		send();
+	}
+	return ret;
+}
+
+size_t HID_Keyboard::add(KeyboardUsageId k) {
+	return set(k, true);
+}
+
+size_t HID_Keyboard::remove(KeyboardUsageId k) {
+	return set(k, false);
+}
+
+size_t HID_Keyboard::set(KeyboardUsageId k, bool on) {
+	if (k >= KEY_LEFT_CTRL && k <= KEY_RIGHT_GUI) {
+		// Modifier key
+		if (on) {
+			_keyReport.modifiers |= (1 << (k - KEY_LEFT_CTRL));
+		} else {
+			_keyReport.modifiers &= ~(1 << (k - KEY_LEFT_CTRL));
 		}
-		if ((k & ALT_GR) == ALT_GR) {
-			_keyReport.modifiers |= 0x40;   // AltGr = right Alt
-			k &= 0x3F;
-		} else if ((k & SHIFT) == SHIFT) {
-			_keyReport.modifiers |= 0x02;	// the left shift modifier
-			k &= 0x7F;
-		}
-		if (k == ISO_REPLACEMENT) {
-			k = ISO_KEY;
+		return 1;
+	} 
+
+	const uint8_t keysSize = sizeof(_keyReport.keys) / sizeof(_keyReport.keys[0]);
+
+	for (uint8_t i = 0; i < keysSize; i++) {
+		if (_keyReport.keys[i] == k) {
+			if (!on) {
+				_keyReport.keys[i] = KEY_RESERVED;
+			}
+			return 1;
 		}
 	}
-
-	// Add k to the key report only if it's not already present
-	// and if there is an empty slot.
-	if (_keyReport.keys[0] != k && _keyReport.keys[1] != k &&
-		_keyReport.keys[2] != k && _keyReport.keys[3] != k &&
-		_keyReport.keys[4] != k && _keyReport.keys[5] != k) {
-
-		char str[8];
-		sprintf(str, "p:0x%02x ", k);
-		Serial.print(str);
-		for (i=0; i<8; i++) {
-			Serial.printf("%1d", (_keyReport.modifiers >> i) & 1);
-		}
-		Serial.println("");
-		for (i=0; i<6; i++) {
-			if (_keyReport.keys[i] == 0x00) {
+	if (!on) {
+		return 0;
+	}
+	for (uint8_t i = 0; i < keysSize; i++) {
+		if (_keyReport.keys[i] == KEY_RESERVED) {
+			if (on) {
 				_keyReport.keys[i] = k;
-				break;
 			}
-		}
-		if (i == 6) {
-			setWriteError();
-			return 0;
+			return 1;
 		}
 	}
-	sendReport(&_keyReport);
-	return 1;
+	return 0;
 }
 
-// release() takes the specified key out of the persistent key report and
-// sends the report.  This tells the OS the key is no longer pressed and that
-// it shouldn't be repeated any more.
-size_t HID_Keyboard::release(uint8_t k)
-{
-	uint8_t i;
-	if (k >= 136) {			// it's a non-printing key (not a modifier)
-		k = k - 136;
-	} else if (k >= 128) {	// it's a modifier key
-		_keyReport.modifiers &= ~(1<<(k-128));
-		k = 0;
-	} else {				// it's a printing key
-		k = pgm_read_byte(_asciimap + k);
-		if (!k) {
-			return 0;
-		}
-		if ((k & ALT_GR) == ALT_GR) {
-			_keyReport.modifiers &= ~(0x40);   // AltGr = right Alt
-			k &= 0x3F;
-		} else if ((k & SHIFT) == SHIFT) {
-			_keyReport.modifiers &= ~(0x02);	// the left shift modifier
-			k &= 0x7F;
-		}
-		if (k == ISO_REPLACEMENT) {
-			k = ISO_KEY;
-		}
+// size_t HID_Keyboard::write(ConsumerUsageId k) {
+// 	auto ret = press(k);
+// 	if (ret) {
+// 		release(k);
+// 	};
+// 	return ret;
+// }
+
+// size_t HID_Keyboard::press(ConsumerUsageId k) {
+// 	auto ret = add(k);
+// 	if (ret) {
+// 		send();
+// 	}
+// 	return ret;
+// }
+
+// size_t HID_Keyboard::release(ConsumerUsageId k) {
+// 	auto ret = remove(k);
+// 	if (ret) {
+// 		send();
+// 	}
+// 	return ret;
+// }
+
+// size_t HID_Keyboard::add(ConsumerUsageId k) {
+// 	return set(k, true);
+// }
+
+// size_t HID_Keyboard::remove(ConsumerUsageId k) {
+// 	return set(k, false);
+// }
+
+// size_t HID_Keyboard::set(ConsumerUsageId k, bool on) {
+// 	if (k >= CONSUMER_USAGE_ID_POWER && k <= CONSUMER_USAGE_ID_CONSUMER_CONTROL) {
+// 		// Consumer key
+// 		if (on) {
+// 			_keyReport.consumer |= (1 << (k - CONSUMER_USAGE_ID_POWER));
+// 		} else {
+// 			_keyReport.consumer &= ~(1 << (k - CONSUMER_USAGE_ID_POWER));
+// 		}
+// 		return 1;
+// 	} 
+// 	return 0;
+// }
+
+size_t HID_Keyboard::write(uint8_t k) {
+	auto ret = press(k);
+	if (ret) {
+		release(k);
+	};
+	return ret;
+}
+
+size_t HID_Keyboard::press(uint8_t k) {
+	auto ret = add(k);
+	if (ret) {
+		send();
+	}
+	return ret;
+}
+
+size_t HID_Keyboard::release(uint8_t k) {
+	auto ret = remove(k);
+	if (ret) {
+		send();
+	}
+	return ret;
+}
+
+size_t HID_Keyboard::add(uint8_t k) {
+	return set(k, true);
+}
+
+size_t HID_Keyboard::remove(uint8_t k) {
+	return set(k, false);
+}
+
+size_t HID_Keyboard::set(uint8_t k, bool on) {
+	if (sizeof(_asciimap)/sizeof(_asciimap[0]) <= k) {
+		return 0;
 	}
 
-	// Test the key report to see if k is present.  Clear it if it exists.
-	// Check all positions in case the key is present more than once (which it shouldn't be)
-	for (i=0; i<6; i++) {
-		if (0 != k && _keyReport.keys[i] == k) {
-			_keyReport.keys[i] = 0x00;
-		}
+	uint16_t keycodeWithMods = pgm_read_word(_asciimap + k);
+	KeyboardUsageId keycode = KeyboardUsageId((uint8_t)(keycodeWithMods & 0xFF));
+	auto ret = set(keycode, on);
+
+  // キーを押すのに成功したときだけ、modifier キーを押す
+	// 離すときは常に処理する
+	if (!ret && on) {
+		return ret;
 	}
 
-	sendReport(&_keyReport);
-	return 1;
-}
-
-size_t HID_Keyboard::consumerPress(uint16_t k)
-{
-    sendConsumerReport(k);
-    return 1;
-}
-
-size_t HID_Keyboard::consumerRelease()
-{
-    sendConsumerReport(0);
-    return 1;
-}
-
-void HID_Keyboard::releaseAll(void)
-{
-	_keyReport.keys[0] = 0;
-	_keyReport.keys[1] = 0;
-	_keyReport.keys[2] = 0;
-	_keyReport.keys[3] = 0;
-	_keyReport.keys[4] = 0;
-	_keyReport.keys[5] = 0;
-	_keyReport.modifiers = 0;
-	sendReport(&_keyReport);
-}
-
-size_t HID_Keyboard::write(uint8_t c)
-{
-	uint8_t p = press(c);  // Keydown
-	delay(10);
-	release(c);            // Keyup
-	delay(10);
-	return p;              // just return the result of press() since release() almost always returns 1
-}
-
-size_t HID_Keyboard::write(const uint8_t *buffer, size_t size) {
-	size_t n = 0;
-	while (size--) {
-		if (*buffer != '\r') {
-			if (write(*buffer)) {
-				n++;
-			} else {
-				break;
-			}
-		}
-		buffer++;
+	if (keycodeWithMods & MOD_LEFT_CTRL) {
+		ret += set(KEY_LEFT_CTRL, on);
 	}
-	return n;
+	if (keycodeWithMods & MOD_LEFT_SHIFT) {
+		ret += set(KEY_LEFT_SHIFT, on);
+	}
+	if (keycodeWithMods & MOD_LEFT_ALT) {
+		ret += set(KEY_LEFT_ALT, on);
+	}
+	if (keycodeWithMods & MOD_LEFT_GUI) {
+		ret += set(KEY_LEFT_GUI, on);
+	}
+	if (keycodeWithMods & MOD_RIGHT_CTRL) {
+		ret += set(KEY_RIGHT_CTRL, on);
+	}
+	if (keycodeWithMods & MOD_RIGHT_SHIFT) {
+		ret += set(KEY_RIGHT_SHIFT, on);
+	}
+	if (keycodeWithMods & MOD_RIGHT_ALT) {
+		ret += set(KEY_RIGHT_ALT, on);
+	}
+	if (keycodeWithMods & MOD_RIGHT_GUI) {
+		ret += set(KEY_RIGHT_GUI, on);
+	}
 }
 
 void HID_Keyboard::onLED(LedCallbackFcn fcn, void *cbData) {

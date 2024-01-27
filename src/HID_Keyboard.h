@@ -24,22 +24,20 @@
 
 #include <Arduino.h>
 #include "Usage_Pages/Usage_Pages.h"
+#include "KeyboardLayouts/Layouts_JP.h"
 
 // Low level key report: up to 6 keys and shift, ctrl etc at once
 typedef struct
 {
   uint8_t modifiers;
-  uint8_t reserved;
-  uint8_t keys[6];
+  ConsumerUsageId consumer;
+  KeyboardUsageId keys[6];
 } KeyReport;
 
 class HID_Keyboard : public Print
 {
 protected:
   KeyReport _keyReport;
-  const uint8_t *_asciimap;
-  virtual void sendReport(KeyReport *keys) = 0;
-  virtual void sendConsumerReport(uint16_t key) = 0;
 
 public:
   HID_Keyboard(void);
@@ -50,16 +48,16 @@ public:
   size_t write(KeyboardUsageId k);
   size_t press(KeyboardUsageId k);
   size_t release(KeyboardUsageId k);
-  virtual size_t add(KeyboardUsageId k);
-  virtual size_t remove(KeyboardUsageId k);
+  size_t add(KeyboardUsageId k);
+  size_t remove(KeyboardUsageId k);
+  size_t set(KeyboardUsageId k, bool on);
 
-  size_t write(ConsumerUsageId k);
-  size_t press(ConsumerUsageId k);
-  size_t release(ConsumerUsageId k);
-  virtual size_t add(ConsumerUsageId k);
-  virtual size_t remove(ConsumerUsageId k);
-
-  virtual size_t releaseAll(void);
+  // size_t write(ConsumerUsageId k);
+  // size_t press(ConsumerUsageId k);
+  // size_t release(ConsumerUsageId k);
+  // size_t add(ConsumerUsageId k);
+  // size_t remove(ConsumerUsageId k);
+  // size_t set(ConsumerUsageId k, bool on);
 
   // by ascii
   size_t write(uint8_t k) override;
@@ -67,6 +65,10 @@ public:
   size_t release(uint8_t k);
   size_t add(uint8_t k);
   size_t remove(uint8_t k);
+  size_t set(uint8_t k, bool on);
+
+  size_t releaseAll(void);
+  virtual int send(void);
 
   typedef void (*LedCallbackFcn)(bool numlock, bool capslock, bool scrolllock, bool compose, bool kana, void *cbData);
   void onLED(LedCallbackFcn fcn, void *cbData = nullptr);

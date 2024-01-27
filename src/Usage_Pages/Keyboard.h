@@ -122,9 +122,9 @@ enum KeyboardUsageId : uint8_t {
     KEY_NON_US_BACKSLASH_VERTICAL_BAR = 0x64,
     KEY_APPLICATION = 0x65,
     // 0x66 - 0x7F are in use
-    KEY_MUTE = 0x7F,
-    KEY_VOLUME_UP = 0x80,
-    KEY_VOLUME_DOWN = 0x81,
+    // KEY_MUTE = 0x7F,
+    // KEY_VOLUME_UP = 0x80,
+    // KEY_VOLUME_DOWN = 0x81,
     // 0x82 - 0x87 are in use
     KEY_INTERNATIONAL1 = 0x87,
     KEY_INTERNATIONAL2 = 0x88,

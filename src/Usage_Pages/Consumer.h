@@ -3,8 +3,9 @@
 #include <Arduino.h>
 
 // Consumer Page 0x0C
+// OOC, OSC, LC, RTC
 
-enum ConsumerUsageId {
+enum ConsumerUsageId : uint8_t {
 	GEN_POWER	= 0x30, // usage type = OOC
 	GEN_SLEEP = 0x32, // usage type = OSC
 
