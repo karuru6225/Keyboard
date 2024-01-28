@@ -3,15 +3,15 @@
 #include <Arduino.h>
 
 enum LEDFlags : uint8_t {
-    LED_NUM_LOCK = (uint8_t)0x01,
-    LED_CAPS_LOCK = (uint8_t)0x02,
-    LED_SCROLL_LOCK = (uint8_t)0x04,
-    LED_COMPOSE = (uint8_t)0x08,
-    LED_KANA = (uint8_t)0x10,
-    LED_POWER = (uint8_t)0x20,
-    LED_SHIFT = (uint8_t)0x40,
-    LED_DO_NOT_DISTURB = (uint8_t)0x80
-}
+    LED_FLAG_NUM_LOCK = (uint8_t)0x01,
+    LED_FLAG_CAPS_LOCK = (uint8_t)0x02,
+    LED_FLAG_SCROLL_LOCK = (uint8_t)0x04,
+    LED_FLAG_COMPOSE = (uint8_t)0x08,
+    LED_FLAG_KANA = (uint8_t)0x10,
+    LED_FLAG_POWER = (uint8_t)0x20,
+    LED_FLAG_SHIFT = (uint8_t)0x40,
+    LED_FLAG_DO_NOT_DISTURB = (uint8_t)0x80
+};
 
 // LED Page 0x08
 

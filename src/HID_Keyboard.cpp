@@ -11,6 +11,7 @@ HID_Keyboard::HID_Keyboard(void) {
 }
 
 void HID_Keyboard::begin(void) {
+	Serial.println("HID_Keyboard::begin");
 	releaseAll();
 	send();
 }
@@ -20,6 +21,9 @@ void HID_Keyboard::end(void) {
 }
 
 size_t HID_Keyboard::write(KeyboardUsageId k) {
+	char buf[16];
+	sprintf(buf, "HID_Keyboard::write: %02x", k);
+	Serial.println(buf);
 	auto ret = press(k);
 	if (ret) {
 		release(k);
@@ -202,6 +206,8 @@ size_t HID_Keyboard::set(uint8_t k, bool on) {
 	if (keycodeWithMods & MOD_RIGHT_GUI) {
 		ret += set(KEY_RIGHT_GUI, on);
 	}
+
+	return ret;
 }
 
 void HID_Keyboard::onLED(LedCallbackFcn fcn, void *cbData) {

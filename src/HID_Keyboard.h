@@ -68,7 +68,7 @@ public:
   size_t set(uint8_t k, bool on);
 
   size_t releaseAll(void);
-  virtual int send(void);
+  virtual int send(void) = 0;
 
   typedef void (*LedCallbackFcn)(bool numlock, bool capslock, bool scrolllock, bool compose, bool kana, void *cbData);
   void onLED(LedCallbackFcn fcn, void *cbData = nullptr);

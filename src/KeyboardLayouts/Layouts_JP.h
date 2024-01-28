@@ -44,6 +44,7 @@ static const uint16_t _asciimap[] = {
     KEY_RESERVED,                                 // FS
     KEY_RESERVED,                                 // GS
     KEY_RESERVED,                                 // RS
+    KEY_RESERVED,                                 // US
 
     KEY_SPACEBAR,                                 // Space
     KEY_1_EXCLAMATION|MOD_LEFT_SHIFT,             // !
