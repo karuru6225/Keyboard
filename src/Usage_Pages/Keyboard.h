@@ -96,6 +96,7 @@ enum KeyboardUsageId : uint8_t {
     KEY_HOME = 0x4A,
     KEY_PAGE_UP = 0x4B,
     KEY_DELETE_FORWRD = 0x4C,
+    KEY_DELETE = 0x4C,
     KEY_END = 0x4D,
     KEY_PAGE_DOWN = 0x4E,
     KEY_RIGHT_ARROW = 0x4F,

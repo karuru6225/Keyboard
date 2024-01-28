@@ -21,9 +21,6 @@ void HID_Keyboard::end(void) {
 }
 
 size_t HID_Keyboard::write(KeyboardUsageId k) {
-	char buf[16];
-	sprintf(buf, "HID_Keyboard::write: %02x", k);
-	Serial.println(buf);
 	auto ret = press(k);
 	if (ret) {
 		release(k);
